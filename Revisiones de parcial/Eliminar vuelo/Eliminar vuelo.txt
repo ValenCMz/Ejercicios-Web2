@@ -1,0 +1,101 @@
+Helpers/ControlLogin.php
+
+<?php
+
+class ControlLogin{
+    public function __construct(){
+    }
+    function checkRolLoggedIn(){
+        if(!isset($_SESSION)){ 
+            session_start(); 
+        }
+	//Si no esta logueado lo redirige al Login.
+        if(!isset($_SESSION["usuario"])){
+            header("Location: ".BASE_URL."login");
+            die();
+        }
+    }
+   
+}
+
+----------------------------------------------------------------
+
+Controller/VueloController.php
+
+<?php
+
+require_once "Model/VueloModel.php";
+require_once "Model/PasajeModel.php";
+require_once "View/VueloView.php";
+require_once 'Helpers/ControlLogin.php';
+
+class VueloController {
+
+    private $vueloModel;
+    private $pasajeModel;
+    private $view;
+    private $controlLogin;
+
+    public function __construct(){
+        $this->vueloModel = new VueloModel();
+        $this->pasajeModel = new PasajeModel();
+        $this->view = new VueloView();
+        $this->controlLogin = new ControlLogin(); 
+    }
+
+    //Muestra todos los vuelos.
+    public function showAll(){
+        $this->controlLogin->checkLoggedIn();
+        $vuelos = $this->vueloModel->getAll();
+        $this->view->showAll($vuelos);
+    }
+
+    function deleteVuelosSinPrimeraClase(){
+        //Chequeo que este logueado
+        $this->controlLogin->checkLoggedIn();
+        //Recupero todos los vuelos sin pasaje sin primera clase.
+        $vuelosParaEliminar = $this->pasajeModel->getVuelosSinPrimera();
+        //Elimino los vuelos
+        foreach($vuelosParaEliminar as $vuelo) {
+            $this->vueloModel->delete($vuelo->id_vuelo);
+        }        
+        //Muestro los vuelos que quedan
+        $this->showAll();
+    }
+}
+---------------------------------------------------------------------------------
+Model/PasajeModel.php
+<?php
+
+class PasajeModel{
+    private $db;
+    
+    public function __construct(){
+        $this->db = new PDO('mysql:host=localhost;'.'dbname=parcial_2021;charset=utf8', 'root', '');
+    }
+
+    function getVuelosSinPrimera(){
+        $sentencia = $this->db->prepare('SELECT p.id_vuelo FROM PASAJE WHERE p.clase <> 1');
+        $sentencia->execute();
+        $vuelos = $sentencia->fetchAll(PDO::FETCH_OBJ);
+        return $vuelos;
+    }    
+}
+
+-----------------------------------------------------------------------------------
+Model/VueloModel.php
+<?php
+
+class VueloModel{
+    private $db;
+    
+    public function __construct(){
+        $this->db = new PDO('mysql:host=localhost;'.'dbname=parcial_2021;charset=utf8', 'root', '');
+    }
+
+    function delete($id){
+        $sentencia = $this->db->prepare('DELETE FROM VUELO WHERE id = ?');
+        $sentencia->execute(array($id));
+    }
+    
+}
